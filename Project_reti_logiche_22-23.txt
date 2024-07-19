@@ -1,0 +1,230 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity project_reti_logiche is
+port (
+    i_clk : in std_logic;
+    i_rst : in std_logic;
+    i_start : in std_logic;
+    i_w : in std_logic;
+    o_z0 : out std_logic_vector(7 downto 0);
+    o_z1 : out std_logic_vector(7 downto 0);
+    o_z2 : out std_logic_vector(7 downto 0);
+    o_z3 : out std_logic_vector(7 downto 0);
+    o_done : out std_logic;
+    o_mem_addr : out std_logic_vector(15 downto 0);
+    i_mem_data : in std_logic_vector(7 downto 0);
+    o_mem_we : out std_logic;
+    o_mem_en : out std_logic      
+);
+
+end project_reti_logiche;
+
+architecture Behavioral of project_reti_logiche is
+
+--START
+signal first_bit: std_logic;
+
+--EXIT_WRITING
+signal position : integer;
+signal exit_port : std_logic_vector(1 downto 0);
+
+--ADD_WRITING + ADD_CONVERTING
+signal saved_address : std_logic_vector(15 downto 0);
+
+--MEM_READING
+signal data : std_logic_vector(7 downto 0);
+
+--EXIT_SETUP
+signal previous_z0 : std_logic_vector(7 downto 0);
+signal previous_z1 : std_logic_vector(7 downto 0);
+signal previous_z2 : std_logic_vector(7 downto 0);
+signal previous_z3 : std_logic_vector(7 downto 0);
+
+
+type state_type is(
+START,
+EXIT_WRITING,
+ADD_WRITING,
+ADD_CONVERTING,
+MEM_READING,
+EXIT_SETUP,
+EXIT_DISPLAY  
+);
+signal CURRENT_STATE, P_STATE: state_type;
+
+
+
+begin
+
+process(CURRENT_STATE, i_start, i_clk, i_rst)
+
+
+begin 
+    if (i_rst='1') then
+        previous_z0<="00000000";
+        previous_z1<="00000000";
+        previous_z2<="00000000";
+        previous_z3<="00000000";
+        o_z0<="00000000";
+        o_z1<="00000000";
+        o_z2<="00000000";
+        o_z3<="00000000";
+        o_done<='0';
+        o_mem_we<='0';
+        o_mem_en<='0';
+        o_mem_addr<="0000000000000000";
+        first_bit<='0';
+        exit_port<="00";
+        saved_address<="0000000000000000";
+        data<="00000000";
+        position<=0;
+        CURRENT_STATE<= START;
+    
+        
+    elsif(rising_edge(i_clk)) then
+    case CURRENT_STATE is 
+    
+    
+        when START => 
+            o_z0<="00000000";
+            o_z1<="00000000";
+            o_z2<="00000000";
+            o_z3<="00000000";
+            o_done<='0';
+            o_mem_we<='0';
+            o_mem_en<='0';
+            o_mem_addr<="0000000000000000";
+            first_bit<='0';
+            exit_port<="00";
+            saved_address<="0000000000000000";
+            data<="00000000";
+            position<=0;
+            if i_start ='0' then
+                CURRENT_STATE<=START; 
+            else 
+                first_bit<=i_w;
+                 CURRENT_STATE<=EXIT_WRITING;
+                 P_STATE<= START;
+            end if;
+
+            
+        when EXIT_WRITING => 
+            if P_STATE=START then
+                exit_port(1)<=first_bit;
+                exit_port(0)<=i_w;
+                position<=15;
+                CURRENT_STATE<=EXIT_WRITING;
+                P_STATE<=EXIT_WRITING;
+            elsif P_STATE=EXIT_WRITING then
+                if(i_start='0') then 
+                    CURRENT_STATE<=ADD_CONVERTING;
+                else 
+                    saved_address(15)<=i_w;
+                    position<=14;
+                    CURRENT_STATE<=ADD_WRITING;
+                end if;
+            end if;
+
+            
+        when ADD_WRITING=>
+            if i_start='1' then
+                saved_address(position)<= i_w;
+                position<=position-1;
+                P_STATE<=ADD_WRITING;
+            else
+                CURRENT_STATE<= ADD_CONVERTING;
+            end if;
+
+             
+         when ADD_CONVERTING=>
+            if position=-1 or position=15 then
+                o_mem_addr<=saved_address;
+            else
+                case position is
+                        when 14=>
+                            o_mem_addr<=(saved_address(14 downto 0)&saved_address(15));
+                        when 13=>
+                            o_mem_addr<=(saved_address(13 downto 0)&saved_address(15 downto 14));
+                        when 12=>
+                            o_mem_addr<=(saved_address(12 downto 0)&saved_address(15 downto 13));
+                        when 11=>
+                            o_mem_addr<=(saved_address(11 downto 0)&saved_address(15 downto 12));
+                        when 10=>
+                            o_mem_addr<=(saved_address(10 downto 0)&saved_address(15 downto 11));
+                        when 9=>
+                            o_mem_addr<=(saved_address(9 downto 0)&saved_address(15 downto 10));
+                        when 8=>
+                            o_mem_addr<=(saved_address(8 downto 0)&saved_address(15 downto 9));
+                        when 7=>
+                            o_mem_addr<=(saved_address(7 downto 0)&saved_address(15 downto 8));
+                        when 6=>
+                            o_mem_addr<=(saved_address(6 downto 0)&saved_address(15 downto 7));
+                        when 5=>
+                            o_mem_addr<=(saved_address(5 downto 0)&saved_address(15 downto 6));
+                        when 4=>
+                            o_mem_addr<=(saved_address(4 downto 0)&saved_address(15 downto 5));
+                        when 3=>
+                            o_mem_addr<=(saved_address(3 downto 0)&saved_address(15 downto 4));
+                        when 2=>
+                            o_mem_addr<=(saved_address(2 downto 0)&saved_address(15 downto 3));
+                        when 1=>
+                            o_mem_addr<=(saved_address(1 downto 0)&saved_address(15 downto 2));
+                        when others=>
+                            o_mem_addr<=(saved_address(0)&saved_address(15 downto 1));
+                        end case;
+            end if;
+            if P_STATE=EXIT_WRITING or P_STATE=ADD_WRITING then 
+                CURRENT_STATE<=ADD_CONVERTING;
+                P_STATE<=ADD_CONVERTING;
+            elsif P_STATE=ADD_CONVERTING then
+                CURRENT_STATE<=MEM_READING;
+                o_mem_en<='1';
+            end if;
+
+            
+        when MEM_READING=>
+            if P_STATE=ADD_CONVERTING then
+                CURRENT_STATE<=MEM_READING;
+                P_STATE<=MEM_READING;
+            elsif P_STATE=MEM_READING then 
+                data<=i_mem_data;
+                CURRENT_STATE<=EXIT_SETUP;
+            end if;
+
+            
+        when EXIT_SETUP=>
+            if exit_port="00" then
+                previous_z0<=data;
+                CURRENT_STATE<=EXIT_DISPLAY;
+            elsif exit_port="01" then
+                previous_z1<=data;
+                CURRENT_STATE<=EXIT_DISPLAY;
+            elsif exit_port="10" then
+                previous_z2<=data;
+                CURRENT_STATE<=EXIT_DISPLAY;
+            else
+                previous_z3<=data;
+                CURRENT_STATE<=EXIT_DISPLAY;
+            end if;
+
+            
+        when EXIT_DISPLAY=>
+            o_z0<=previous_z0;
+            o_z1<=previous_z1;
+            o_z2<=previous_z2;
+            o_z3<=previous_z3;
+            o_done<='1';
+            CURRENT_STATE<=START;
+
+            
+        when others=>
+            CURRENT_STATE<=START; 
+        
+        end case; 
+    end if;
+           
+end process;
+
+
+end Behavioral;
